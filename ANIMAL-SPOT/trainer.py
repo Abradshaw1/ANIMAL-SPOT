@@ -13,6 +13,7 @@ import time
 import operator
 import platform
 import numpy as np
+import random
 import utils.metrics as m
 
 import torch
@@ -101,7 +102,7 @@ class Trainer:
         metrics: Union[list, dict] = [],
         val_metric: Union[int, str] = "loss",
         val_metric_mode: str = "min",
-        start_epoch=0,
+        start_epoch=0
     ):
         self.logger.info("Init model on device '{}'".format(device))
         self.model = self.model.to(device)
@@ -154,6 +155,12 @@ class Trainer:
                 val_comp = operator.lt
             else:
                 val_comp = operator.gt
+#new
+            early_stopping_triggered = False
+            last_val_epoch = 0
+            last_false_positives = []
+            last_false_negatives = []
+#new            
             for epoch in range(start_epoch, n_epochs):
                 self.train_epoch(
                     epoch, train_loader, loss_fn, optimizer, metrics, device
@@ -184,13 +191,31 @@ class Trainer:
                         }
                     )
                     scheduler.step(val_result)
+                    last_false_positives, last_false_negatives = self.track_false_positives_and_negatives(val_loader, device)
+#new                # Reinitialize tracking lists for the current validation epoch
+                    # last_false_positives = []
+                    # last_false_negatives = []
+                    # Track false positives and false negatives for this validation epoch
+                    # false_positives, false_negatives = self.track_false_positives_and_negatives(val_loader, device)
+                    # last_false_positives = false_positives
+                    # last_false_negatives = false_negatives
+#new
                     if early_stopping.step(val_result):
                         self.logger.info(
-                            "No improvment over the last {} epochs. Stopping.".format(
+                            "No improvement over the last {} epochs. Stopping.".format(
                                 patience_early_stopping
                             )
                         )
+                        early_stopping_triggered = True
                         break
+  #new                      
+            if early_stopping_triggered:
+                self.logger.info(f"Epoch {last_val_epoch}: False Positives: {len(last_false_positives)}, False Negatives: {len(last_false_negatives)}")
+                for fp in last_false_positives:
+                    self.logger.info(f"False Positive File: {fp}")
+                for fn in last_false_negatives:
+                    self.logger.info(f"False Negative File: {fn}")
+     #new           
         except Exception:
             import traceback
             self.logger.warning(traceback.format_exc())
@@ -218,6 +243,31 @@ class Trainer:
 
         return self.model
 
+    def track_false_positives_and_negatives(self, val_loader, device):
+        false_positives = []
+        false_negatives = []
+        for data, target in val_loader:
+            data = data.to(device)
+            if isinstance(target, dict):
+                for key, value in target.items():
+                    if isinstance(value, torch.Tensor):
+                        target[key] = value.to(device)
+            else:
+                target = target.to(device)
+
+            output = self.model(data)
+            pred = output.argmax(dim=1, keepdim=True)
+            for idx, (p, t) in enumerate(zip(pred, target["call"])):
+                file_name = target["file_name"][idx] #new
+                if p.item() == 1 and t.item() == 0:
+                    false_positives.append(file_name)
+                    # false_positives.append(val_loader.dataset.file_names[idx])
+                elif p.item() == 0 and t.item() == 1:
+                    false_negatives.append(file_name) #new
+                    # false_negatives.append(val_loader.dataset.file_names[idx])
+    
+        return false_positives, false_negatives
+
     """
     Training of one epoch using pre-extracted training data, loss function, optimizer, and respective metrics
     """
@@ -243,10 +293,14 @@ class Trainer:
         else:
             auc = None
             confusion = ConfusionMeter(n_categories=train_loader.dataset.num_classes)
+#added
+        # self.false_positives = []
+        # self.false_negatives = []
 
         for i, (features, label) in enumerate(train_loader):
             features = features.to(device)
             call_label = None
+            file_names = label["file_name"]  # Add file names extraction
 
             if "call" in label:
                 call_label = label["call"].to(device, non_blocking=True, dtype=torch.int64)
@@ -311,7 +365,7 @@ class Trainer:
                 self.write_confusion_summary(confusion_matrix_norm, label_str, epoch=epoch, phase="train", norm=True, numbering=True)
                 self.write_confusion_summary(confusion_matrix_norm, label_str, epoch=epoch, phase="train", norm=True, numbering=False)
                 self.write_confusion_summary(confusion_matrix_raw, label_str, epoch=epoch, phase="train", norm=False, numbering=True)
-
+            
         self.writer.flush()
 
         return epoch_loss.get()
@@ -347,6 +401,7 @@ class Trainer:
             for i, (features, label) in enumerate(test_loader):
                 features = features.to(device)
                 call_label = None
+                file_names = label["file_name"]  # Add file names extraction
 
                 if "call" in label:
                     call_label = label["call"].to(device, non_blocking=True, dtype=torch.int64)

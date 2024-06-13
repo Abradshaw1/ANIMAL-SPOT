@@ -630,6 +630,8 @@ class Dataset(AudioDataset):
         label = self.load_label(file)
         if ground_truth is not None:
             label["ground_truth"] = ground_truth
+        label = self.load_label(file_name)  # Load the label for the file, added
+        label["file_name"] = file_name #added
         return sample, label
 
     """
@@ -638,7 +640,7 @@ class Dataset(AudioDataset):
     """
     def load_label(self, file_name: str):
         label = dict()
-        label["file_name"] = file_name
+        label["file_name"] = file_name #this is added i think
         label["call"] = self.get_class_type(file_name)
         return label
 
