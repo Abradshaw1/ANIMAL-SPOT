@@ -7,7 +7,7 @@
 ################
 ###SRC_DIR = Directory to the ANIMAL-SPOT Source Code Repository
 ################  
-src_dir=/*USER-SPECIFIC-DIRECTORY*/
+src_dir=/home/gridsan/abradshaw/MITBuzz/ANIMAL-SPOT/ANIMAL-SPOT
 
 ################
 ###DEBUG = Activate/Deactivate additional logging information during training procedure (recommended). 
@@ -19,24 +19,24 @@ debug=true
 ################
 ###MODEL_PATH = Path of the trained and saved network model (.pk file)
 ################  
-model_path=/*USER-SPECIFIC-DIRECTORY*/ANIMAL-SPOT.pk
+model_path=/home/gridsan/abradshaw/MITBuzz/ANIMAL-SPOT/train_model_dir/ANIMAL-SPOT.pk
 
 ################
 ###LOG_DIR = Directory where the logging file, named PREDICT.log, will be stored.
 ################
-log_dir=/*USER-SPECIFIC-DIRECTORY*/
+log_dir=/home/gridsan/abradshaw/MITBuzz/ANIMAL-SPOT/train_log_dir
 
 ################
 ###OUTPUT_DIR = Directory where the output prediction file(s) and visualizations (if activated, see visualize option) are stored.
 ################
-output_dir=/*USER-SPECIFIC-DIRECTORY*/
+output_dir=/home/gridsan/abradshaw/MITBuzz/ANIMAL-SPOT/output_dir
 
 ################
 ###SEQUENCE_LENGTH = Prediction sequence length in seconds. The network will get an input of a given sequence length
 ###in order to predict/classify this particular frame (sliding window approach). Consequently each classification hypotheses involves
 ###the same temporal context, which should be similar to the selected sequence length during training.
 ################
-sequence_len=0.30
+sequence_len=1
 
 ################
 ###HOP = Hop size in seconds. The network will get an input of a given sequence length
@@ -67,7 +67,7 @@ num_workers=1
 ###the model will ignore GPU-based predictioin independent of the hardware.
 ###Activate (=true) versus Deactivate (=false).
 ################
-no_cuda=true
+no_cuda=false
 
 ################
 ###VISUALIZE = Enable visualization option, which will visualize and store spectrograms for each given frame within the given output directory.
@@ -87,7 +87,7 @@ jit_load=false
 ###to the value during training in order to not mix up two different types of nomralization techniques during training and prediction
 ###Activate (=true) versus Deactivate (=false).
 ################
-min_max_norm=false
+min_max_norm=true
 
 ################
 ###LATENT_EXTRACT = Additional extraction of hidden layer information (one layer before final output layer), by creating a pickle file at the chosen ouptut directory named animal-spot-classifier.p including the following
@@ -99,4 +99,4 @@ latent_extract=true
 ################
 ###INPUT_FILE = input data which should be predicted via the network. It can be either a path to a given audio file (.wav), or a path to a directory only containing .wav files 
 ################
-input_file=/*USER-SPECIFIC-DIRECTORY*/audio.wav
+input_file=/home/gridsan/abradshaw/MITBuzz/ANIMAL-SPOT/ANIMAL-SPOT-DATA/predict_input_file/audio.wav

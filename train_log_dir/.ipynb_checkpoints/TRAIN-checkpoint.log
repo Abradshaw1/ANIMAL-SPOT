@@ -1,0 +1,143 @@
+15:35:27|D|dataOpts: {
+    "sr": 44100,
+    "preemphases": 0.98,
+    "n_fft": 1024,
+    "hop_length": 172,
+    "n_freq_bins": 256,
+    "fmin": 0,
+    "fmax": 10000,
+    "freq_compression": "linear",
+    "min_level_db": -100,
+    "ref_level_db": 20
+}
+15:35:27|D|Number of spectrogram time-steps (input size = time-steps x frequency-bins) : 256
+15:35:27|I|Setting up model
+15:35:27|D|Encoder: ResidualEncoder(
+  (conv1): Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+  (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (relu1): ReLU(inplace=True)
+  (layer1): Sequential(
+    (0): BasicBlock(
+      (shortcut): Sequential(
+        (0): Conv2d(64, 64, kernel_size=(1, 1), stride=(2, 2), bias=False)
+        (1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+      (conv1): Conv2d(64, 64, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+      (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu1): ReLU(inplace=True)
+      (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu2): ReLU(inplace=True)
+    )
+    (1): BasicBlock(
+      (conv1): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu1): ReLU(inplace=True)
+      (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu2): ReLU(inplace=True)
+    )
+  )
+  (layer2): Sequential(
+    (0): BasicBlock(
+      (shortcut): Sequential(
+        (0): Conv2d(64, 128, kernel_size=(1, 1), stride=(2, 2), bias=False)
+        (1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+      (conv1): Conv2d(64, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+      (bn1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu1): ReLU(inplace=True)
+      (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu2): ReLU(inplace=True)
+    )
+    (1): BasicBlock(
+      (conv1): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu1): ReLU(inplace=True)
+      (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu2): ReLU(inplace=True)
+    )
+  )
+  (layer3): Sequential(
+    (0): BasicBlock(
+      (shortcut): Sequential(
+        (0): Conv2d(128, 256, kernel_size=(1, 1), stride=(2, 2), bias=False)
+        (1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+      (conv1): Conv2d(128, 256, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+      (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu1): ReLU(inplace=True)
+      (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu2): ReLU(inplace=True)
+    )
+    (1): BasicBlock(
+      (conv1): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu1): ReLU(inplace=True)
+      (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu2): ReLU(inplace=True)
+    )
+  )
+  (layer4): Sequential(
+    (0): BasicBlock(
+      (shortcut): Sequential(
+        (0): Conv2d(256, 512, kernel_size=(1, 1), stride=(2, 2), bias=False)
+        (1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+      (conv1): Conv2d(256, 512, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+      (bn1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu1): ReLU(inplace=True)
+      (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu2): ReLU(inplace=True)
+    )
+    (1): BasicBlock(
+      (conv1): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu1): ReLU(inplace=True)
+      (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu2): ReLU(inplace=True)
+    )
+  )
+)
+15:35:27|D|Classifier: Classifier(
+  (linear): Linear(in_features=512, out_features=2, bias=True)
+)
+15:35:27|D|Searching for audio files in /home/gridsan/abradshaw/MITBuzz/ANIMAL-SPOT/ANIMAL-SPOT-DATA
+15:35:27|I|Found 21957 audio files for training.
+15:35:27|I|Model predict 2 classes
+15:35:28|D|Generating /home/gridsan/abradshaw/MITBuzz/ANIMAL-SPOT/ANIMAL-SPOT-DATA/target/train.csv
+15:35:28|D|Generating /home/gridsan/abradshaw/MITBuzz/ANIMAL-SPOT/ANIMAL-SPOT-DATA/target/val.csv
+15:35:28|D|Generating /home/gridsan/abradshaw/MITBuzz/ANIMAL-SPOT/ANIMAL-SPOT-DATA/target/test.csv
+15:35:30|D|Generating /home/gridsan/abradshaw/MITBuzz/ANIMAL-SPOT/ANIMAL-SPOT-DATA/noise/train.csv
+15:35:30|D|Generating /home/gridsan/abradshaw/MITBuzz/ANIMAL-SPOT/ANIMAL-SPOT-DATA/noise/val.csv
+15:35:30|D|Generating /home/gridsan/abradshaw/MITBuzz/ANIMAL-SPOT/ANIMAL-SPOT-DATA/noise/test.csv
+15:35:30|I|Init dataset train...
+15:35:30|D|Number of files : 15370
+15:35:30|D|Number of samples in train for target: 7019
+15:35:30|D|Number of samples in train for noise: 8351
+15:35:30|D|Running without augmentation
+15:35:30|D|Init 0/1-dB-normalization activated
+15:35:30|I|Init dataset val...
+15:35:30|D|Number of files : 3293
+15:35:30|D|Number of samples in val for target: 1504
+15:35:30|D|Number of samples in val for noise: 1789
+15:35:30|D|Running without augmentation
+15:35:30|D|Init 0/1-dB-normalization activated
+15:35:30|I|Init dataset test...
+15:35:30|D|Number of files : 3294
+15:35:30|D|Number of samples in test for target: 1504
+15:35:30|D|Number of samples in test for noise: 1790
+15:35:30|D|Running without augmentation
+15:35:30|D|Init 0/1-dB-normalization activated
+15:35:31|I|Init summary writer
+15:35:31|D|Starting checkpoint writer thread
+15:35:31|I|Init model on device 'cuda'
+15:35:31|I|Class Distribution: {'noise': 0, 'target': 1}
+15:35:31|I|Start training model binary_classifier
+15:35:31|D|train|0|start
