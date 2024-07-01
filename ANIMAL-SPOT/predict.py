@@ -16,9 +16,12 @@ import argparse
 import torch
 import torch.nn as nn
 
+import wandb
+
 from pathlib import Path
 from math import ceil, floor
 from collections import OrderedDict
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, accuracy_score
 from utils.summary import plot_spectrogram
 
 from utils.logging import PredictionLogger
@@ -149,11 +152,87 @@ def load_pickle(path):
 
     return features
 
+#START OF MY  IMPLEMENTATION
+
+def classify_file(file_path):
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+        for line in lines:
+            if "pred=1" in line:
+                return 1
+    return 0
+
+def get_label_from_filename(filename):
+    if "target" in filename:
+        return 1
+    elif "noise" in filename:
+        return 0
+    else:
+        raise ValueError("Filename does not contain 'target' or 'noise' to determine label.")
+
+def parse_logs_and_generate_metrics(output_dir):
+    true_labels = []
+    predicted_labels = []
+    
+    for filename in os.listdir(output_dir):
+        if filename.endswith("_predict_output.log"):
+            file_path = os.path.join(output_dir, filename)
+            true_label = get_label_from_filename(filename)
+            predicted_label = classify_file(file_path)
+            if predicted_label is not None:
+                true_labels.append(true_label)
+                predicted_labels.append(predicted_label)
+            else:
+                print(f"No prediction found in file: {file_path}")
+    
+    return true_labels, predicted_labels
+
+def generate_confusion_matrix_and_metrics(true_labels, predicted_labels):
+    cm = confusion_matrix(true_labels, predicted_labels)
+
+    if cm.size == 0:
+        raise ValueError("Confusion matrix is empty. Ensure that the true and predicted labels are being collected correctly.")
+    if cm.shape != (2, 2):
+        raise ValueError(f"Confusion matrix shape is not (2, 2): {cm.shape}")
+
+    tn, fp, fn, tp = cm.ravel()
+    
+    precision = precision_score(true_labels, predicted_labels)
+    recall = recall_score(true_labels, predicted_labels)
+    f1 = f1_score(true_labels, predicted_labels)
+    accuracy = accuracy_score(true_labels, predicted_labels)
+    
+    # Calculating False Positive Rate and False Negative Rate
+    fpr = fp / (fp + tn) if (fp + tn) != 0 else 0
+    fnr = fn / (fn + tp) if (fn + tp) != 0 else 0
+    
+    metrics = {
+        'Confusion Matrix': cm,
+        'Precision': precision,
+        'Recall': recall,
+        'F1 Score': f1,
+        'Accuracy': accuracy,
+        'False Positive Rate': fpr,
+        'False Negative Rate': fnr,
+        'True Positives': tp,
+        'True Negatives': tn,
+        'False Positives': fp,
+        'False Negatives': fn
+    }
+    
+    return metrics
+
+#END OF MY IMPLEMENTATION
+
 ARGS = parser.parse_args()
 
 log = PredictionLogger("PREDICT", ARGS.debug, ARGS.log_dir)
 
 models = {"encoder": 1, "classifier": 2}
+
+# Initialize Wandb for prediction
+wandb.init(project="buzzcam", mode="offline", name="prediction_run")
+
 
 """
 Main function to compute prediction (segmentation) by using a trained model together with a given audio tape by processing a sliding window approach
@@ -354,7 +433,32 @@ if __name__ == "__main__":
     if ARGS.latent_extract:
         save_pickle(ARGS.output_dir, features, "animal-spot-classifier")
         file_log.debug("Successfully saved latent classification features (final hidden layer)!")
-
+        
     file_log.debug("Finished proccessing")
 
     file_log.close()
+
+
+    # Parse logs and generate metrics
+    true_labels, predicted_labels = parse_logs_and_generate_metrics(ARGS.output_dir)
+    metrics = generate_confusion_matrix_and_metrics(true_labels, predicted_labels)
+
+    # Log metrics to Wandb
+    wandb.log({
+        "Confusion Matrix": wandb.plot.confusion_matrix(probs=None,
+                                                        y_true=true_labels,
+                                                        preds=predicted_labels,
+                                                        class_names=["Noise", "Target"]),
+        "Precision": metrics['Precision'],
+        "Recall": metrics['Recall'],
+        "F1 Score": metrics['F1 Score'],
+        "Accuracy": metrics['Accuracy'],
+        "False Positive Rate": metrics['False Positive Rate'],
+        "False Negative Rate": metrics['False Negative Rate'],
+        "True Positives": metrics['True Positives'],
+        "True Negatives": metrics['True Negatives'],
+        "False Positives": metrics['False Positives'],
+        "False Negatives": metrics['False Negatives']
+    })
+    wandb.finish()
+

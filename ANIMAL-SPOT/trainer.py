@@ -16,6 +16,8 @@ import numpy as np
 import random
 import utils.metrics as m
 
+import wandb
+
 import torch
 import torch.nn as nn
 
@@ -81,6 +83,9 @@ class Trainer:
 
         self.class_dist_dict = None
 
+        # Watch the model for gradient norms and parameter changes
+        wandb.watch(self.model, log="all", log_freq=100)
+
     """
     Starting network training from scratch or loading existing checkpoints. The model training and validation is processed for a given
     number of epochs while storing all relevant information (metrics, summaries, logs, checkpoints) after each epoch. After the training 
@@ -102,11 +107,28 @@ class Trainer:
         metrics: Union[list, dict] = [],
         val_metric: Union[int, str] = "loss",
         val_metric_mode: str = "min",
-        start_epoch=0
+        start_epoch=0,
+        is_sweep=False
     ):
+        self.logger.info("Initializing training...")
+        # if not is_sweep:
+        #     self.logger.info("WandB Initialization for normal runs")
+        #     # Wandb Initialization for normal runs
+        #     wandb.init(project="buzzcam", mode="offline", name="training_run")
+        #     wandb.config.update(vars(ARGS))
+        # else:
+        #     self.logger.info("WandB Initialization for sweep runs")
+        #     # Wandb Initialization for sweep runs
+        #     wandb.init(project="buzzcam", mode="offline", name="sweep_run")
+        #     self.config_data = dict(wandb.config)
+        # # # Wandb Initialization
+        # # # wandb.init(project="buzzcam", mode="offline", name="training_run")
+        # # # wandb.config.update(vars(ARGS))
+        
         self.logger.info("Init model on device '{}'".format(device))
         self.model = self.model.to(device)
         self.class_dist_dict = train_loader.dataset.class_dist_dict
+
 
         best_model = copy.deepcopy(self.model.state_dict())
         best_metric = 0.0 if val_metric_mode == "max" else float("inf")
@@ -192,14 +214,8 @@ class Trainer:
                     )
                     scheduler.step(val_result)
                     last_false_positives, last_false_negatives = self.track_false_positives_and_negatives(val_loader, device)
-#new                # Reinitialize tracking lists for the current validation epoch
-                    # last_false_positives = []
-                    # last_false_negatives = []
-                    # Track false positives and false negatives for this validation epoch
-                    # false_positives, false_negatives = self.track_false_positives_and_negatives(val_loader, device)
-                    # last_false_positives = false_positives
-                    # last_false_negatives = false_negatives
-#new
+                    wandb.log({"epoch": epoch, "val_loss": val_loss, val_metric: val_result, "best_metric": best_metric, "learning_rate": optimizer.param_groups[0]["lr"], "false_positives": len(last_false_positives), "false_negatives": len(last_false_negatives)})  # Log metrics to Wandb
+
                     if early_stopping.step(val_result):
                         self.logger.info(
                             "No improvement over the last {} epochs. Stopping.".format(
@@ -208,14 +224,14 @@ class Trainer:
                         )
                         early_stopping_triggered = True
                         break
-  #new                      
-            if early_stopping_triggered:
+#new                      
+            if early_stopping_triggered or epoch == n_epochs - 1:
                 self.logger.info(f"Epoch {last_val_epoch}: False Positives: {len(last_false_positives)}, False Negatives: {len(last_false_negatives)}")
                 for fp in last_false_positives:
                     self.logger.info(f"False Positive File: {fp}")
                 for fn in last_false_negatives:
                     self.logger.info(f"False Negative File: {fn}")
-     #new           
+#new           
         except Exception:
             import traceback
             self.logger.warning(traceback.format_exc())
@@ -241,6 +257,23 @@ class Trainer:
         self.logger.info("Best val metric: {:4f}".format(best_metric))
         self.logger.info("Final test metric: {:4f}".format(final_metric))
 
+        flat_params = [p.flatten() for p in self.model.parameters()]
+        flat_params = torch.cat(flat_params).detach().cpu().numpy()
+        # flat_params = torch.cat(flat_params).cpu().numpy()
+
+        wandb.log({
+            "final_test_loss": final_loss,
+            "final_test_metric": final_metric,
+            "time_elapsed": time_elapsed,
+            "learning_rate": optimizer.param_groups[0]["lr"],
+            "trainable_parameters": sum(p.numel() for p in self.model.parameters() if p.requires_grad),  # Parameter count
+            "gradient_norm": torch.norm(torch.stack([torch.norm(p.grad.detach(), 2.0) for p in self.model.parameters() if p.grad is not None])).cpu().numpy(),  # Gradient norm
+            "weight_histogram": wandb.Histogram(flat_params)  # Weight histograms
+        })
+        wandb.log({"final_test_loss": final_loss, "final_test_metric": final_metric, "time_elapsed": time_elapsed})  # Log final test metrics to Wandb
+
+        wandb.finish()  # Finish the training run
+
         return self.model
 
     def track_false_positives_and_negatives(self, val_loader, device):
@@ -261,10 +294,8 @@ class Trainer:
                 file_name = target["file_name"][idx] #new
                 if p.item() == 1 and t.item() == 0:
                     false_positives.append(file_name)
-                    # false_positives.append(val_loader.dataset.file_names[idx])
                 elif p.item() == 0 and t.item() == 1:
                     false_negatives.append(file_name) #new
-                    # false_negatives.append(val_loader.dataset.file_names[idx])
     
         return false_positives, false_negatives
 
@@ -293,9 +324,6 @@ class Trainer:
         else:
             auc = None
             confusion = ConfusionMeter(n_categories=train_loader.dataset.num_classes)
-#added
-        # self.false_positives = []
-        # self.false_negatives = []
 
         for i, (features, label) in enumerate(train_loader):
             features = features.to(device)
@@ -365,8 +393,14 @@ class Trainer:
                 self.write_confusion_summary(confusion_matrix_norm, label_str, epoch=epoch, phase="train", norm=True, numbering=True)
                 self.write_confusion_summary(confusion_matrix_norm, label_str, epoch=epoch, phase="train", norm=True, numbering=False)
                 self.write_confusion_summary(confusion_matrix_raw, label_str, epoch=epoch, phase="train", norm=False, numbering=True)
+
+                wandb.log({
+                "train_confusion_matrix_raw": wandb.plot.confusion_matrix(probs=None, y_true=call_label.cpu().numpy(), preds=prediction.cpu().numpy(), class_names=label_str)
+            })
             
         self.writer.flush()
+
+        wandb.log({"epoch": epoch, "train_loss": epoch_loss.get(), "data_loading_time": data_loading_time.get()})  # Log training metrics to Wandb
 
         return epoch_loss.get()
 
@@ -463,7 +497,15 @@ class Trainer:
                 self.write_confusion_summary(confusion_matrix_norm, label_str, epoch=epoch, phase=phase, norm=True, numbering=False)
                 self.write_confusion_summary(confusion_matrix_raw, label_str, epoch=epoch, phase=phase, norm=False, numbering=True)
 
+                wandb.log({
+                "{}_confusion_matrix_raw".format(phase): wandb.plot.confusion_matrix(probs=None, y_true=call_label.cpu().numpy(), preds=prediction.cpu().numpy(), class_names=label_str)
+            })
+
         self.writer.flush()
+
+        wandb.log({"epoch": epoch, "{}_loss".format(phase): epoch_loss.get(), "data_loading_time": data_loading_time.get()})
+
+        # wandb.log({"epoch": epoch, "test_loss": epoch_loss.get(), "data_loading_time": data_loading_time.get()})  # Log test metrics to Wandb
 
         return epoch_loss.get()
 
@@ -580,6 +622,18 @@ class Trainer:
                     phase + "/data_loading_time", data_loading_time, epoch
                 )
             self.logger.info(log_str)
+            wandb.log({
+                phase + "_loss": loss,
+                "learning_rate": lr,
+                "epoch_time": epoch_time,
+                "data_loading_time": data_loading_time,
+                "accuracy": metrics["accuracy"].get() if "accuracy" in metrics else None,
+                "f1_score": metrics["f1"].get() if "f1" in metrics else None,
+                "precision": metrics["precision"].get() if "precision" in metrics else None,
+                "recall": metrics["TPR"].get() if "TPR" in metrics else None,
+                "false_positive_rate": metrics["FPR"].get() if "FPR" in metrics else None
+            })
+            # wandb.log({phase + "_loss": loss, "learning_rate": lr, "epoch_time": epoch_time, "data_loading_time": data_loading_time})  # Log scalar metrics to Wandb
 
     """
     Writes roc curve summary for validation and test set 
@@ -590,6 +644,7 @@ class Trainer:
                 phase += "_"
             fig = roc_fig(tpr, fpr, auc)
             self.writer.add_figure(phase + "roc/roc", fig, epoch)
+            wandb.log({"roc_auc": auc, "roc_tpr": tpr, "roc_fpr": fpr})  # Log ROC curve metrics to Wandb
 
     """
     Writes confusion matrix summary for validation and test set 
@@ -610,6 +665,8 @@ class Trainer:
                 else:
                     cm_file = "confusion_matrix_raw/cm"
             self.writer.add_figure(phase + cm_file, fig, epoch)
+            wandb.log({"{}_confusion_matrix".format(phase): wandb.Image(fig)})
+            # wandb.log({"confusion_matrix": confusion_matrix, "confusion_matrix_labels": label_str})  # Log confusion matrix to Wandb
 
 
     def get_class_type_from_idx(self, idx):

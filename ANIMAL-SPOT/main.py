@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/gridsan/abradshaw/.conda/envs/python39++/bin/python
 """
 Module: main.py
 Authors: Christian Bergler, Hendrik Schroeter
@@ -14,6 +14,9 @@ import pathlib
 import argparse
 import platform
 import utils.metrics as m
+import sys
+
+import wandb
 
 import torch
 import torch.onnx
@@ -273,6 +276,20 @@ if ARGS.conv_kernel_size is not None and len(ARGS.conv_kernel_size):
 
 log = Logger("TRAIN", ARGS.debug, ARGS.log_dir)
 
+if "--sweep" in sys.argv:
+    wandb.init(project="buzzcam", mode="offline", name="sweep_run")
+    config_data = dict(wandb.config)
+else:
+    wandb.init(project="buzzcam", mode="offline", name="training_run")
+    wandb.config.update(vars(ARGS))
+
+# wandb.config.update(vars(ARGS))
+
+# Wandb Initialization
+# wandb.init(project="buzzcam", mode="offline", name="training_run")
+
+# wandb.config.update(vars(ARGS))
+
 """
 Get audio all audio files from the given data directory except they are broken.
 """
@@ -372,7 +389,6 @@ def get_classes(database):
 Main function to compute data preprocessing, network training, evaluation, and saving.
 """
 if __name__ == "__main__":
-
     encoderOpts = DefaultEncoderOpts
     classifierOpts = DefaultClassifierOpts
     dataOpts = DefaultSpecDatasetOps
@@ -384,6 +400,22 @@ if __name__ == "__main__":
             classifierOpts[arg] = value
         if arg in dataOpts and value is not None:
             dataOpts[arg] = value
+
+    # Log parameter count
+    model = nn.Sequential(
+        OrderedDict([("encoder", Encoder(encoderOpts)), ("classifier", Classifier(classifierOpts))])
+    )
+    total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    wandb.config.update({"parameter_count": total_params})
+
+    wandb.config.update({
+        "encoderOpts": encoderOpts,
+        "classifierOpts": classifierOpts,
+        "dataOpts": dataOpts,
+        "input_shape": (ARGS.batch_size, 1, dataOpts["n_freq_bins"], int(float(ARGS.sequence_len) / 1000 * dataOpts["sr"] / dataOpts["hop_length"])),
+        "split_fracs": {"train": .7, "val": .15, "test": .15}
+    })
+
 
     ARGS.lr *= ARGS.batch_size
 
@@ -525,6 +557,7 @@ if __name__ == "__main__":
         metrics=metrics,
         val_metric="accuracy",
         val_metric_mode=metric_mode,
+        is_sweep='--sweep' in sys.argv
     )
 
     encoder = model.encoder
@@ -536,5 +569,12 @@ if __name__ == "__main__":
     class_dist_dict = datasets["train"].class_dist_dict
 
     save_model(model, encoder, encoderOpts, classifier, classifierOpts, dataOpts, path, class_dist_dict, use_jit=ARGS.jit_save, min_max=ARGS.min_max_norm)
+    
+    # wandb.log({
+    #     "best_metric": best_metric,
+    #     "final_metric": final_metric,
+    #     "time_elapsed": time_elapsed
+    # })
 
     log.close()
+    wandb.finish()
